@@ -138,10 +138,14 @@ abstract class AbstractItemNormalizer extends AbstractObjectNormalizer
         $propertyNames = $this->propertyNameCollectionFactory->create($context['resource_class'], $options);
 
         $allowedAttributes = [];
+        $classMetaData = $this->classMetadataFactory->getMetadataFor($classOrObject);
+        $groups = $context[self::GROUPS] ?? false;
+
         foreach ($propertyNames as $propertyName) {
             $propertyMetadata = $this->propertyMetadataFactory->create($context['resource_class'], $propertyName, $options);
 
             if (
+                $this->isInSerializationGroups($propertyName, $groups, $classMetaData) &&
                 $this->isAllowedAttribute($classOrObject, $propertyName, null, $context) &&
                 ((isset($context['api_normalize']) && $propertyMetadata->isReadable()) ||
                 (isset($context['api_denormalize']) && $propertyMetadata->isWritable()))
@@ -151,6 +155,27 @@ abstract class AbstractItemNormalizer extends AbstractObjectNormalizer
         }
 
         return $allowedAttributes;
+    }
+
+    /**
+     * Checks that an attribute is contained in the serialization groups of the context,
+     * if there are any.
+     */
+    protected function isInSerializationGroups(string $attributeName, $groups, $classMetaData)
+    {
+        if ($groups === false) {
+            return true;
+        }
+
+        foreach ($classMetaData->getAttributesMetadata() as $attributeMetadata) {
+            $name = $attributeMetadata->getName();
+
+            if (array_intersect($attributeMetadata->getGroups(), $groups) && $name === $attributeName) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
