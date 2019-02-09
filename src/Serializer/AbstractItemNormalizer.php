@@ -325,10 +325,28 @@ abstract class AbstractItemNormalizer extends AbstractObjectNormalizer
         $propertyNames = $this->propertyNameCollectionFactory->create($context['resource_class'], $options);
 
         $allowedAttributes = [];
+        $groups = $context[self::GROUPS] ?? false;
+        $attributesInGroup = [];
+
+        if ($groups && !\is_array($groups)) {
+            $groups = [$groups];
+        }
+
+        if (null !== $this->classMetadataFactory && $groups) {
+            foreach ($this->classMetadataFactory->getMetadataFor($classOrObject)->getAttributesMetadata() as $attributeMetadata) {
+                $name = $attributeMetadata->getName();
+
+                if (array_intersect($attributeMetadata->getGroups(), $groups)) {
+                    $attributesInGroup[] = $name;
+                }
+            }
+        }
+
         foreach ($propertyNames as $propertyName) {
             $propertyMetadata = $this->propertyMetadataFactory->create($context['resource_class'], $propertyName, $options);
 
             if (
+                (false === $groups || null === $this->classMetadataFactory || \in_array($propertyName, $attributesInGroup, true)) &&
                 $this->isAllowedAttribute($classOrObject, $propertyName, null, $context) &&
                 (
                     isset($context['api_normalize']) && $propertyMetadata->isReadable() ||
